@@ -88,9 +88,10 @@ def build_chain() -> Any:
         "human",
         [
             {"type": "text", "text": """
-                 Extract all line items, 
+                 Extract all line items,
+                 description,
                  amounts(Positive Sign amount of the item), 
-                 and discounts (negative sign amount of the item after the positive amount), 
+                 discounts (negative sign amount of the item after the positive amount), 
                  subtotal, 
                  rounding(negative number between subtotal and final payments), 
                  final payment from this receipt image."""},
