@@ -135,9 +135,10 @@ Describing the solution
 The core challenge of HW1 is to analyze receipt images and extract structured financial information in order to compute both the actual amount paid and the hypothetical amount without discounts, and through research and testing we confirmed that neither traditional programming nor pure LLM approaches can solve this reliably on their own:  
 
 - Conventional programming alone struggles with this task because it requires strong OCR capabilities and complex rule‑based parsing to correctly interpret item descriptions, amounts, discounts, subtotals, rounding, and final payments.
-- Pure LLM approaches also fall short because language models has limitation in performing accuracy mathematic calculation
-accurate can misinterpret Base64 image data, hallucinate text, or produce inconsistent JSON formats.
+- Pure LLM approaches also fall short because language models has limitation in performing mathematic calculation
+accurately 
 
+Therefore, I have adopted the solution as follows
 1. Each receipt image is first encoded into Base64, but instead of embedding the Base64 directly into the prompt, which causes the LLM to treat the encoded bytes as text and misinterpret Base64 image data cause hallucinations of the result, We explicitly separate the prompt into a text block and an `image_url` block so the model correctly interprets the image.
 2. During development, we tested multi‑image prompts but found that DeepSeek Vision becomes unstable when processing many images at once due to the limited size of each prompt, given that we unsure the number of the images in the private test, so we design to processes receipts one by one for accuracy.
 3. After the LLM extracts raw text, a second prompt transforms the text into a strict JSON schema. During the development, we found that even if we asked LLM to return the JSON format, there still have chances that LLM Return result cannot be directly use due to some special characters / additional text is provided during LLM return, therefore a logic is added in python to removing Markdown fences or stray characters before parsing. This structured JSON allows the program to compute item totals, item‑level discounts, global discounts, rounding adjustments, and final payments.
