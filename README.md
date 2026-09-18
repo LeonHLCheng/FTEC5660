@@ -51,3 +51,78 @@ homework runner.
 ## Homework 1 solution: 
 > to students: please fill your solution description here.
 
+Visualization of the chain design
+    ┌──────────────────────────────┐
+    │           PC Folder          │
+    │        - Image Files         │
+    └───────────────┬──────────────┘
+                    │
+                    ▼
+┌────────────────────────────────────────┐
+│              Python Program            │
+├────────────────────────────────────────┤
+│ 1. Scan folder for images              │
+│    - Identify all files inside the     │
+│      target directory and filter       │
+│      only those with image extensions  │
+│                                        │
+│ 2. Base64-encode each image            │
+│    - Convert each image file into a    │
+│      Base64 data URL                   │
+│                                        │
+│ 3. Build prompt chain                  │
+│    - Stage 1: extract                  │
+│    - Stage 2: transform JSON           │
+│                                        │
+│ 4. Send Base64 + prompts               │
+│    - Invoke DeepSeek chain             │
+└───────────────────┬────────────────────┘
+                    │
+                    ▼
+  ┌──────────────────────────────────┐
+  │          DeepSeek LLM            │
+  ├──────────────────────────────────┤
+  │ 5. LLM Step 1 — prompt_extract   │
+  │    DeepSeek Vision interprets the│
+  │    receipt image and extracts:   │
+  │    - description                 │
+  │    - amount                      │
+  │    - discount                    │
+  │    - subtotal                    │
+  │    - rounding                    │
+  │    - final payment               │
+  │                                  │
+  │ 6. Raw text output               │
+  │    Receive unstructured text     │
+  │    containing the extracted      │
+  │    receipt information.          │
+  │                                  │
+  │ 7. LLM Step 2 — prompt_transform │
+  │    - Convert to strict JSON      │
+  │                                  │
+  │ 8. Structured JSON output        │
+  └─────────────────┬────────────────┘
+                    │
+                    ▼
+    ┌──────────────────────────────┐
+    │     Python Program (cont.)   │
+    ├──────────────────────────────┤
+    │ 9. Organize the data         │
+    │    - item totals             │
+    │    - discounts               │
+    │    - rounding                │
+    │    - final payment           │
+    │                              │
+    │ 10. Accumulate results       │
+    │     - total paid             │
+    │     - total cost w/o discount│
+    │                              │
+    │ 11. Output summarized CSV    │
+    └───────────────┬──────────────┘
+                    │
+                    ▼    
+    ┌──────────────────────────────┐
+    │           PC Folder          │
+    │      - summarized CSV        │
+    └──────────────────────────────┘
+\
