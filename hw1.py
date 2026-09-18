@@ -63,7 +63,62 @@ def build_chain() -> Any:
     ``deepseek-v4-flash-vision-exp``. The API key is loaded from .env.
     """
     ### YOUR CODE HERE
-    return None
+    import os
+    from langchain_deepseek import ChatDeepSeek
+    from langchain_core.prompts import ChatPromptTemplate
+    from langchain_core.output_parsers import StrOutputParser, JsonOutputParser
+    from langchain_core.runnables import RunnableLambda, RunnablePassthrough
+    
+    
+    # Retrieve the API key from environment variables
+    api_key = os.getenv("DEEPSEEK_API_KEY")
+    if not api_key:
+        raise ValueError("DEEPSEEK_API_KEY environment variable is not set.")
+    
+    llm = ChatDeepSeek(
+        model="deepseek-v4-flash-vision-exp",
+        api_key=api_key,
+        temperature=0.2, ##https://api-docs.deepseek.com/quick_start/parameter_settings/
+        extra_body={"thinking": {"type": "disabled"}},   # one pass, no hidden reasoning
+    )
+    
+    
+    prompt_extract = ChatPromptTemplate.from_messages([
+    (
+        "human",
+        [
+            {"type": "text", "text": """
+                 Extract all line items, 
+                 amounts(Positive Sign amount of the item), 
+                 and discounts (negative sign amount of the item after the positive amount), 
+                 subtotal, 
+                 rounding(negative number between subtotal and final payments), 
+                 final payment from this receipt image."""},
+            {"type": "image_url", "image_url": {"url": "{encoded_image}"}},
+        ],
+    )
+    ])
+    
+    prompt_transform = ChatPromptTemplate.from_template(
+    """Transform the receipts items into a JSON object. Schema
+    {{
+        "items": [{{"amount": "float","description": "str","discount": "float"}}],
+        "global_discounts": float,
+        "rounding": float,
+        "final_amount": float
+    }}
+    as keys:\n\n{receipt__details}"""
+    )
+    extraction_chain = prompt_extract | llm | StrOutputParser()
+    full_chain = (
+        {"receipt__details": extraction_chain}
+        | prompt_transform
+        | llm
+        | StrOutputParser()
+    )
+    
+        
+    return full_chain
 
 
 def answer_queries(chain: Any, images: list[Path]) -> dict[str, Any]:
@@ -79,8 +134,64 @@ def answer_queries(chain: Any, images: list[Path]) -> dict[str, Any]:
     to process independent receipt-extraction prompts in parallel.
     """
     ### YOUR CODE HERE
-    _ = (chain, images)
-    return {QUERY_1: DUMMY_RESPONSE, QUERY_2: DUMMY_RESPONSE}
+    
+    #Result Parameter
+    total_paid=0
+    total_cost_without_discount=0
+    
+    for photo_path in images:
+        print("Working on "+str(photo_path))
+        #Encode_photo for sending
+        AI_extracted_receipt = chain.invoke({"encoded_image": image_data_url(photo_path)})
+
+        # Cleanup unwanted characters from the JSON passed by AI     
+        match = re.search(r"```(?:json)?\s*(.*?)\s*```", AI_extracted_receipt, re.DOTALL)
+        if match:
+            cleaned = match.group(1).strip()
+
+        # Convert JSON string to Python dictionary       
+        receipt = json.loads(cleaned)
+        #print (receipt)
+        
+        #Recipt Level Statistic 
+        total_amount = 0.0
+        total_discount = 0.0
+        
+        
+        for item in receipt["items"]:
+            total_amount += item.get("amount", 0.0)
+            total_discount += item.get("discount", 0.0)
+
+        ''' #testing script
+        grand_total_discount = (
+            round(total_discount,2) + #item level Total Discount 
+            round(receipt.get("global_discounts", 0.0),2) + #Global Discount
+            round(receipt.get("rounding", 0.0),2)) # Rounding Discount
+        
+        print("Total item level amount:", round(total_amount,2))
+        print("Total item level discount:", round(total_discount,2))
+        print("Grand total discount (items + global):", round(grand_total_discount,2))
+        print("AI Extracted Original Final Payement Amount : "+str(round(float(receipt.get("final_amount", 0.0)),2)))
+        
+        if(grand_total_discount<0):
+            print("Calculated Based on AI Extraction Result : " + str(round(total_amount+grand_total_discount,2)))
+            if round(total_amount+grand_total_discount,2) != round(float(receipt.get("final_amount", 0.0)),2):
+                print('Error found in '+str(photo_path)+' AI Extraction')
+        else:
+            print("Calculated Based on AI Extraction Result : " + str(round(total_amount-grand_total_discount,2)))
+            if round(total_amount-grand_total_discount,2) != round(float(receipt.get("final_amount", 0.0)),2):
+                print('Error found in '+str(photo_path)+' AI Extraction')
+        '''
+        print('-------------------------------------------------------------------------')
+        print()
+        
+        
+        ##accumulate for final result
+        total_paid +=receipt.get("final_amount", 0.0)
+        total_cost_without_discount+=total_amount
+        
+
+    return {QUERY_1: round(total_paid,2), QUERY_2: round(total_cost_without_discount,2)}
 
 
 # Everything below is provided runner/scoring code. No edits are needed.
